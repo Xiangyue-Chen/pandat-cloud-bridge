@@ -121,3 +121,6 @@ python -m pip install -r requirements-dev.txt
 python -m pytest -q
 streamlit run streamlit_app.py
 ```
+
+开发机上的可重复验证结果和首次真实作业清单见
+[`docs/verification.md`](docs/verification.md)。

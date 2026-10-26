@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import os
+import subprocess
+import sys
 from pathlib import Path
 from uuid import UUID
 
@@ -15,6 +18,26 @@ from streamlit_app import (
     submit_job,
     verify_access_code,
 )
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_streamlit_entrypoint_imports_without_test_path_bootstrap() -> None:
+    environment = os.environ.copy()
+    environment.pop("PYTHONPATH", None)
+
+    completed = subprocess.run(
+        [sys.executable, "-c", "import streamlit_app"],
+        cwd=ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
 
 
 APP = Path(__file__).resolve().parents[1] / "streamlit_app.py"

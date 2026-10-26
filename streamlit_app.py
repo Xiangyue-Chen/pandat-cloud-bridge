@@ -3,9 +3,16 @@ from __future__ import annotations
 import hashlib
 import hmac
 import math
+import sys
 from collections.abc import Mapping, MutableMapping, Sequence
+from pathlib import Path
 from typing import Any
 from uuid import UUID
+
+
+SRC = Path(__file__).resolve().parent / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 import pandas as pd
 import streamlit as st
