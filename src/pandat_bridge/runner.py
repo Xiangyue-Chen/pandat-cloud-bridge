@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -38,6 +40,11 @@ def run_pandat(pbfx: Path, executable: Path, timeout_s: int | float) -> RunOutco
     stderr_path = pbfx.with_suffix(".stderr.log")
     started_wall = time.time()
     started = time.monotonic()
+    if sys.platform == "win32" and executable.suffix.lower() == ".exe":
+        return _run_windows_executable(
+            pbfx, executable, timeout_s, stdout_path, stderr_path, started_wall, started
+        )
+
     command = (
         [sys.executable, str(executable), pbfx.name, "2"]
         if executable.suffix.lower() == ".py"
@@ -82,6 +89,116 @@ def run_pandat(pbfx: Path, executable: Path, timeout_s: int | float) -> RunOutco
         seconds=round(time.monotonic() - started, 3),
         pid=process.pid,
     )
+
+
+def _run_windows_executable(
+    pbfx: Path,
+    executable: Path,
+    timeout_s: int | float,
+    stdout_path: Path,
+    stderr_path: Path,
+    started_wall: float,
+    started: float,
+) -> RunOutcome:
+    status_path = pbfx.with_suffix(".launcher.json")
+    stdout_path.write_text("", encoding="utf-8")
+    stderr_path.write_text("", encoding="utf-8")
+    status_path.unlink(missing_ok=True)
+    command = _start_process_command(
+        pbfx, executable, stdout_path, stderr_path, status_path, timeout_s
+    )
+    launcher = subprocess.Popen(
+        command,
+        cwd=pbfx.parent,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    launcher_exit = launcher.wait()
+    status = _read_launcher_status(status_path)
+    child_pid = status.get("pid")
+    child_exit = status.get("exit_code")
+    timed_out = status.get("timed_out") is True
+    if not isinstance(child_pid, int) or child_pid <= 0:
+        raise RunnerError("Pandat launcher did not report a valid child process")
+
+    log = _read_log(stdout_path) + "\n" + _read_log(stderr_path)
+    outcome = _classify_log(log, pbfx, started_wall)
+    if outcome is None and timed_out:
+        outcome = (
+            "failed",
+            "timeout",
+            f"Pandat calculation timeout after {timeout_s:g} s",
+            None,
+        )
+    if outcome is None:
+        exit_code = child_exit if isinstance(child_exit, int) else launcher_exit
+        outcome = (
+            "failed",
+            "early_exit",
+            f"Pandat exited before success: {exit_code}",
+            None,
+        )
+
+    run_status, error_code, message, result_path = outcome
+    return RunOutcome(
+        status=run_status,
+        error_code=error_code,
+        message=message,
+        result_path=result_path,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        seconds=round(time.monotonic() - started, 3),
+        pid=child_pid,
+    )
+
+
+def _start_process_command(
+    pbfx: Path,
+    executable: Path,
+    stdout_path: Path,
+    stderr_path: Path,
+    status_path: Path,
+    timeout_s: int | float,
+) -> list[str]:
+    launcher = Path(__file__).resolve().parents[2] / "scripts" / "run_pandat_process.ps1"
+    if not launcher.is_file():
+        raise RunnerError(f"Pandat process launcher not found: {launcher}")
+    powershell = shutil.which("pwsh.exe")
+    if not powershell:
+        raise RunnerError("PowerShell Core executable not found")
+    return [
+        powershell,
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        str(launcher),
+        "-Executable",
+        str(executable),
+        "-Pbfx",
+        str(pbfx),
+        "-StdoutPath",
+        str(stdout_path),
+        "-StderrPath",
+        str(stderr_path),
+        "-StatusPath",
+        str(status_path),
+        "-TimeoutSeconds",
+        str(float(timeout_s)),
+    ]
+
+
+def _read_launcher_status(path: Path) -> dict[str, object]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise RunnerError("Pandat launcher status is missing or invalid") from exc
+    if not isinstance(value, dict):
+        raise RunnerError("Pandat launcher status is missing or invalid")
+    return value
 
 
 def _classify_log(
