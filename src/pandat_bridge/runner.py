@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import time
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -214,8 +215,20 @@ def _classify_log(
         return "failed", "pandat_failure", "Pandat reported calculation failure", None
     if "Simulation is done with Success" not in log:
         return None
-    match = re.search(r"(?m)^\d+:\s*(.+\.result)\.html\s*$", log)
-    result = Path(match.group(1).strip()) if match else pbfx.with_suffix(".result")
+    result_match = re.search(r"(?m)^\d+:\s*(.+\.result)\.html\s*$", log)
+    table_match = re.search(r"(?m)^\d+:\s*(.+\.dat\.table)\s*$", log)
+    if result_match:
+        result = Path(result_match.group(1).strip())
+    elif table_match:
+        result, stale = _native_result_from_table(
+            Path(table_match.group(1).strip()).parent, pbfx, started_wall
+        )
+        if result is None:
+            code = "stale_result" if stale else "missing_result"
+            message = "Pandat result is stale" if stale else "Pandat reported success but result is missing"
+            return "failed", code, message, None
+    else:
+        result = pbfx.with_suffix(".result")
     if not result.is_absolute():
         result = pbfx.parent / result
     if not result.is_file():
@@ -223,6 +236,29 @@ def _classify_log(
     if result.stat().st_mtime < started_wall - 2:
         return "failed", "stale_result", "Pandat result is stale", None
     return "success", None, "Pandat calculation completed", result, 
+
+
+def _native_result_from_table(
+    output_dir: Path, pbfx: Path, started_wall: float
+) -> tuple[Path | None, bool]:
+    if not output_dir.is_dir():
+        return None, False
+    try:
+        expected_name = ET.parse(pbfx).getroot().find("calculation").get("name")
+    except (AttributeError, ET.ParseError, OSError):
+        return None, False
+    stale_match = False
+    for candidate in sorted(output_dir.glob("*.result"), key=lambda path: path.stat().st_mtime, reverse=True):
+        try:
+            section = ET.parse(candidate).getroot().find("section")
+        except (ET.ParseError, OSError):
+            continue
+        if section is not None and section.get("name") == expected_name:
+            if candidate.stat().st_mtime < started_wall:
+                stale_match = True
+                continue
+            return candidate, False
+    return None, stale_match
 
 
 def _read_log(path: Path) -> str:

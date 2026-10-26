@@ -34,6 +34,100 @@ def test_detects_success_and_fresh_native_result(tmp_path: Path, monkeypatch: py
     assert outcome.seconds < 2
 
 
+def test_detects_matching_fresh_result_in_native_output_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    output_dir = tmp_path / "pandat-temp"
+    output_dir.mkdir()
+    pbfx = tmp_path / "job.pbfx"
+    pbfx.write_text(
+        '<pbfx><calculation name="target-job" type="line" /></pbfx>',
+        encoding="utf-8",
+    )
+    fake = _write_fake_executable_script(
+        tmp_path / "native_output_fake.py",
+        "import os\n"
+        "from pathlib import Path\n"
+        "out = Path(os.environ['FAKE_PANDAT_OUTPUT_DIR'])\n"
+        "(out / 'calc_foreign.result').write_text(\"<Pandat_Result><section name='other-job' type='line'/></Pandat_Result>\", encoding='utf-8')\n"
+        "(out / 'calc_target.result').write_text(\"<Pandat_Result><section name='target-job' type='line'/></Pandat_Result>\", encoding='utf-8')\n"
+        "table = out / 'job.dat.table'\n"
+        "table.write_text('table', encoding='utf-8')\n"
+        "print(f'1: {table}', flush=True)\n"
+        "print('Simulation is done with Success for [target-job].', flush=True)\n",
+    )
+    monkeypatch.setenv("FAKE_PANDAT_OUTPUT_DIR", str(output_dir))
+
+    outcome = run_pandat(pbfx, fake, timeout_s=2)
+
+    assert outcome.status == "success"
+    assert outcome.error_code is None
+    assert outcome.result_path == output_dir / "calc_target.result"
+
+
+def test_rejects_matching_native_result_that_predates_the_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    output_dir = tmp_path / "pandat-temp"
+    output_dir.mkdir()
+    stale = output_dir / "calc_target.result"
+    stale.write_text(
+        "<Pandat_Result><section name='target-job' type='line'/></Pandat_Result>",
+        encoding="utf-8",
+    )
+    pbfx = tmp_path / "job.pbfx"
+    pbfx.write_text(
+        '<pbfx><calculation name="target-job" type="line" /></pbfx>',
+        encoding="utf-8",
+    )
+    fake = _write_fake_executable_script(
+        tmp_path / "native_output_without_result.py",
+        "import os\n"
+        "from pathlib import Path\n"
+        "out = Path(os.environ['FAKE_PANDAT_OUTPUT_DIR'])\n"
+        "table = out / 'job.dat.table'\n"
+        "table.write_text('table', encoding='utf-8')\n"
+        "print(f'1: {table}', flush=True)\n"
+        "print('Simulation is done with Success for [target-job].', flush=True)\n",
+    )
+    monkeypatch.setenv("FAKE_PANDAT_OUTPUT_DIR", str(output_dir))
+
+    outcome = run_pandat(pbfx, fake, timeout_s=2)
+
+    assert outcome.status == "failed"
+    assert outcome.error_code == "stale_result"
+
+
+def test_does_not_fall_back_to_pbfx_result_after_native_output_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    output_dir = tmp_path / "pandat-temp"
+    output_dir.mkdir()
+    pbfx = tmp_path / "job.pbfx"
+    pbfx.write_text(
+        '<pbfx><calculation name="target-job" type="line" /></pbfx>',
+        encoding="utf-8",
+    )
+    fake = _write_fake_executable_script(
+        tmp_path / "native_output_with_wrong_fallback.py",
+        "import os, sys\n"
+        "from pathlib import Path\n"
+        "pbfx = Path(sys.argv[1]).resolve()\n"
+        "pbfx.with_suffix('.result').write_text(\"<Pandat_Result><section name='wrong-job' type='line'/></Pandat_Result>\", encoding='utf-8')\n"
+        "out = Path(os.environ['FAKE_PANDAT_OUTPUT_DIR'])\n"
+        "table = out / 'job.dat.table'\n"
+        "table.write_text('table', encoding='utf-8')\n"
+        "print(f'1: {table}', flush=True)\n"
+        "print('Simulation is done with Success for [target-job].', flush=True)\n",
+    )
+    monkeypatch.setenv("FAKE_PANDAT_OUTPUT_DIR", str(output_dir))
+
+    outcome = run_pandat(pbfx, fake, timeout_s=2)
+
+    assert outcome.status == "failed"
+    assert outcome.error_code == "missing_result"
+
+
 @pytest.mark.parametrize(
     ("mode", "status", "code", "message"),
     [
