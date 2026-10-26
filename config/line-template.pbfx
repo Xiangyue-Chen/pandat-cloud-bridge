@@ -1,0 +1,63 @@
+<pbfx version="1.0">
+  <Header copyright="CompuTherm, LLC">
+    <Application name="Pandat" version="2024" />
+  </Header>
+  <calculation name="template_line" type="line">
+    <databases>
+      <database type="pdb" file_name="__LOCAL_DATABASE__" />
+    </databases>
+    <units>
+      <unit name="P" value="atm" />
+      <unit name="T" value="C" />
+      <unit name="n" value="x%" />
+    </units>
+    <system name="Default_System">
+      <components>
+        <component name="Fe" status="Selected" />
+        <component name="Ni" status="Selected" />
+      </components>
+      <phases>
+        <phase name="*" status="Entered" />
+      </phases>
+      <points>
+        <point>
+          <statespace>
+            <T value="25" />
+            <P value="1" />
+            <n component="Fe" value="50" />
+            <n component="Ni" value="50" />
+          </statespace>
+        </point>
+        <point>
+          <statespace>
+            <T value="1500" />
+            <P value="1" />
+            <n component="Fe" value="50" />
+            <n component="Ni" value="50" />
+          </statespace>
+        </point>
+      </points>
+      <condition>
+        <equilibrium_type type="global" />
+        <steps value="100" />
+      </condition>
+    </system>
+    <output unit="">
+      <tables>
+        <table name="job.dat" source="Default" type="Default">
+          <column name="T" />
+          <column name="P" />
+          <column name="phase_name" />
+          <column name="x(*)" />
+          <column name="w(*)" />
+          <column name="G" />
+          <column name="f(@*)" />
+          <column name="G(@*)" />
+          <column name="n_kg" />
+          <column name="n_mole" />
+        </table>
+      </tables>
+    </output>
+  </calculation>
+</pbfx>
+

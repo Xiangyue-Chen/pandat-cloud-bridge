@@ -1,0 +1,33 @@
+<result>
+  <section name="fixture_line">
+    <components>
+      <component name="Fe" weight="0.055845" />
+      <component name="Ni" weight="0.0586934" />
+    </components>
+    <line>
+      <point>
+        <statespace><T>298.15</T><P>101325</P><component name="Fe" x="0.5" /><component name="Ni" x="0.5" /></statespace>
+        <property G="-10000" />
+        <phasepoint in_equilibrium="true"><phase name="Fcc" nth="0" /><property f="0.6" /><statespace><component name="Fe" x="0.7" /><component name="Ni" x="0.3" /></statespace></phasepoint>
+        <phasepoint in_equilibrium="true"><phase name="Bcc" nth="0" /><property f="0.4" /><statespace><component name="Fe" x="0.2" /><component name="Ni" x="0.8" /></statespace></phasepoint>
+      </point>
+      <point>
+        <statespace><T>1000</T><P>101325</P><component name="Fe" x="0.5" /><component name="Ni" x="0.5" /></statespace>
+        <property G="-9000" />
+        <phasepoint in_equilibrium="true"><phase name="Fcc" nth="0" /><property f="0.6" /><statespace><component name="Fe" x="0.7" /><component name="Ni" x="0.3" /></statespace></phasepoint>
+        <phasepoint in_equilibrium="true"><phase name="Bcc" nth="0" /><property f="0.4" /><statespace><component name="Fe" x="0.2" /><component name="Ni" x="0.8" /></statespace></phasepoint>
+      </point>
+      <point>
+        <statespace><T>1000</T><P>101325</P><component name="Fe" x="0.5" /><component name="Ni" x="0.5" /></statespace>
+        <property G="-8999" />
+        <phasepoint in_equilibrium="true"><phase name="Fcc" nth="0" /><property f="1" /><statespace><component name="Fe" x="0.5" /><component name="Ni" x="0.5" /></statespace></phasepoint>
+      </point>
+      <point>
+        <statespace><T>1773.15</T><P>101325</P><component name="Fe" x="0.5" /><component name="Ni" x="0.5" /></statespace>
+        <property G="-5000" />
+        <phasepoint in_equilibrium="true"><phase name="Liquid" nth="0" /><property f="1" /><statespace><component name="Fe" x="0.5" /><component name="Ni" x="0.5" /></statespace></phasepoint>
+      </point>
+    </line>
+  </section>
+</result>
+
