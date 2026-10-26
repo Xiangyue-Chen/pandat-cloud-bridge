@@ -1,0 +1,55 @@
+name: Licensed Pandat calculation
+
+on:
+  workflow_dispatch:
+    inputs:
+      payload_b64:
+        description: Validated bounded Pandat job payload
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pandat-local-singleton
+  cancel-in-progress: false
+
+jobs:
+  calculate:
+    runs-on: [self-hosted, Windows, X64, pandat-licensed]
+    timeout-minutes: 130
+    env:
+      PANDAT_JOB_PAYLOAD: ${{ inputs.payload_b64 }}
+      PANDAT_ARTIFACT_DIR: ${{ github.workspace }}\artifacts\${{ github.run_id }}
+      PANDAT_TEMPLATE_PATH: ${{ github.workspace }}\config\line-template.pbfx
+      PANDAT_TIMEOUT_SECONDS: "7200"
+      PYTHONPATH: ${{ github.workspace }}\src
+    steps:
+      - name: Check out trusted default branch
+        uses: actions/checkout@v4
+
+      - name: Install pinned runtime dependencies
+        shell: pwsh
+        run: python -m pip install -r requirements.txt
+
+      - name: Resolve validated job identifier
+        id: meta
+        shell: pwsh
+        run: |
+          $jobId = python -c "import os; from pandat_bridge.payload import decode_job; print(decode_job(os.environ['PANDAT_JOB_PAYLOAD']).job_id)"
+          "job_id=$jobId" >> $env:GITHUB_OUTPUT
+
+      - name: Run licensed Pandat worker
+        shell: pwsh
+        run: python -m pandat_bridge.worker_cli
+
+      - name: Upload audited result artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pandat-result-${{ steps.meta.outputs.job_id }}
+          path: ${{ env.PANDAT_ARTIFACT_DIR }}
+          if-no-files-found: error
+          retention-days: 7
+
