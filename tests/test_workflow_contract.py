@@ -27,8 +27,11 @@ def test_workflow_uses_only_the_licensed_serial_windows_runner() -> None:
         "cancel-in-progress": "false",
     }
     job = workflow["jobs"]["calculate"]
+    assert job["if"] == "github.ref == 'refs/heads/main'"
     assert job["runs-on"] == ["self-hosted", "Windows", "X64", "pandat-licensed"]
     assert workflow["permissions"] == {"contents": "read"}
+    checkout = next(step for step in job["steps"] if step.get("uses") == "actions/checkout@v4")
+    assert checkout["with"] == {"ref": "main"}
 
 
 def test_payload_reaches_worker_only_through_environment() -> None:

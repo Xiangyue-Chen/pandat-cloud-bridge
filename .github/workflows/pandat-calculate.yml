@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   calculate:
+    if: github.ref == 'refs/heads/main'
     runs-on: [self-hosted, Windows, X64, pandat-licensed]
     timeout-minutes: 130
     env:
@@ -28,6 +29,8 @@ jobs:
     steps:
       - name: Check out trusted default branch
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Install pinned runtime dependencies
         shell: pwsh

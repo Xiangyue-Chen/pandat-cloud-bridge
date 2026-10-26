@@ -71,15 +71,7 @@ class EndToEndGitHubSession:
         raise AssertionError(f"unexpected request: {method} {url}")
 
 
-def c63_native_result(path: Path) -> None:
-    bulk = {
-        "Fe": 0.5793,
-        "Co": 0.0966,
-        "Ni": 0.2628,
-        "Cr": 0.011,
-        "Ti": 0.0498,
-        "B": 0.0005,
-    }
+def c63_native_result(path: Path, bulk: dict[str, float]) -> None:
     components = "".join(
         f'<component name="{element}" weight="1" />' for element in bulk
     )
@@ -128,7 +120,7 @@ def test_cloud_dispatch_local_worker_and_web_download_round_trip(
             {"元素": "Co", "含量": 9.66},
             {"元素": "Ni", "含量": 26.28},
             {"元素": "Cr", "含量": 1.10},
-            {"元素": "Ti", "含量": 4.98},
+            {"元素": "Ti", "含量": 4.97},
             {"元素": "B", "含量": 0.05},
         ],
         25.0,
@@ -155,7 +147,10 @@ def test_cloud_dispatch_local_worker_and_web_download_round_trip(
     database = tmp_path / "private.pdb"
     database.write_bytes(b"local-only-database-placeholder")
     native_result = tmp_path / "c63.result"
-    c63_native_result(native_result)
+    c63_native_result(
+        native_result,
+        {entry.element: entry.value / 100.0 for entry in job.composition},
+    )
     artifact_dir = tmp_path / "artifact"
     monkeypatch.setenv("PANDAT_JOB_PAYLOAD", transport.dispatched_payload)
     monkeypatch.setenv("PANDAT_EXE", str(FAKE_PANDAT))

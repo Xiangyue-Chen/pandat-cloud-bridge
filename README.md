@@ -101,6 +101,7 @@ Streamlit 需要被授权读取个人账户的私有仓库。网页可以公开�
 - `phase-diagram.png/.pdf`；
 - `phase-fractions.csv`、`phase-regions.csv`；
 - `metadata.json`、`status.json`；
+- `pandat.stdout.log`、`pandat.stderr.log`；
 - 内层完整结果 ZIP。
 
 许可证不可用、数据库不支持元素、原生计算失败、提前退出、结果缺失/陈旧、超时和数值守恒失败使用不同错误码，不会被统一成“计算失败”。Artifact 保留 7 天。

@@ -7,8 +7,8 @@
 - 完整测试：`python -m pytest -q`。
 - 导入/语法：`python -m compileall -q src streamlit_app.py`。
 - 端到端模拟：网页生成 C63(C9) 的结构化载荷，GitHub broker mock 接收同一 UUID，本地 worker 调用 fake Pandat，生成 GitHub artifact，网页再按 run ID 和 job ID 下载。
-- 模拟结果核对：25–1500 ℃、3 个结果点、`Fcc`/`Liquid` 相名、元数据 UUID、CSV、PNG 和内层结果 ZIP 一致。
-- 工作流契约：只有 `workflow_dispatch`；固定 `Windows`、`X64`、`pandat-licensed` 标签；单作业并发；失败也上传状态 artifact；保留 7 天。
+- 模拟结果核对：25–1500 ℃、3 个结果点、`Fcc`/`Liquid` 相名、元数据 UUID、CSV、PNG、Pandat stdout/stderr 日志和内层结果 ZIP 一致。
+- 工作流契约：只有 `workflow_dispatch`；非 `main` 分支在 GitHub 侧拒绝执行；固定 `Windows`、`X64`、`pandat-licensed` 标签；单作业并发；失败也上传状态 artifact；保留 7 天。
 - 安全契约：网页只能提交受限 JSON；runner 再验证；没有 PBFX/命令/路径输入；token、数据库和许可证不进入 artifact。
 
 ## 本机只读检查

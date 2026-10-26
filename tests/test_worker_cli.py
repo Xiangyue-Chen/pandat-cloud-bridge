@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -56,7 +57,12 @@ def test_worker_success_creates_complete_artifact_and_removes_workdir(
     status = json.loads((artifact / "status.json").read_text(encoding="utf-8"))
     assert status["status"] == "success"
     assert status["error_code"] is None
-    assert list(artifact.glob("pandat-result-*.zip"))
+    archive = next(iter(artifact.glob("pandat-result-*.zip")))
+    assert (artifact / "pandat.stdout.log").is_file()
+    assert (artifact / "pandat.stderr.log").is_file()
+    with zipfile.ZipFile(archive) as bundle:
+        assert "pandat.stdout.log" in bundle.namelist()
+        assert "pandat.stderr.log" in bundle.namelist()
     assert not (artifact / "_work").exists()
     assert not list(artifact.glob("*.pbfx"))
 

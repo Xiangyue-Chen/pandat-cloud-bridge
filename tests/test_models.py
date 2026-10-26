@@ -17,7 +17,7 @@ def c63_mapping(**overrides: object) -> dict[str, object]:
             {"element": "Co", "value": 9.66},
             {"element": "Ni", "value": 26.28},
             {"element": "Cr", "value": 1.10},
-            {"element": "Ti", "value": 4.98},
+            {"element": "Ti", "value": 4.97},
             {"element": "B", "value": 0.05},
         ],
         "temperature_start_c": 25.0,
@@ -36,16 +36,19 @@ def test_accepts_c63_and_preserves_validated_conditions() -> None:
     assert job.sample_name == "C63(C9)"
     assert job.sample_slug == "C63-C9"
     assert job.unit == "at"
-    assert job.submitted_total == pytest.approx(100.0)
+    assert job.submitted_total == pytest.approx(99.99)
     assert sum(entry.value for entry in job.composition) == pytest.approx(100.0)
-    assert [(entry.element, entry.value) for entry in job.composition] == [
-        ("B", 0.05),
-        ("Co", 9.66),
-        ("Cr", 1.10),
-        ("Fe", 57.93),
-        ("Ni", 26.28),
-        ("Ti", 4.98),
-    ]
+    expected = {
+        "B": 0.05,
+        "Co": 9.66,
+        "Cr": 1.10,
+        "Fe": 57.93,
+        "Ni": 26.28,
+        "Ti": 4.97,
+    }
+    assert {entry.element: entry.value for entry in job.composition} == pytest.approx(
+        {element: value * 100 / 99.99 for element, value in expected.items()}
+    )
     assert job.temperature_start_c == 25.0
     assert job.temperature_end_c == 1500.0
     assert job.steps == 100

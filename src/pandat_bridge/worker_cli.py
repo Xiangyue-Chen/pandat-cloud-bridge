@@ -45,6 +45,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 _copy_logs(run, artifact_dir)
                 _status(artifact_dir, run.status, run.error_code, run.message, run.seconds)
                 return 1
+            _copy_logs(run, artifact_dir)
             package_result(job, run.result_path, run, artifact_dir)
             return 0
     except ResultValidationError as exc:
