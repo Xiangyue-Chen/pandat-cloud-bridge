@@ -58,6 +58,15 @@ def test_workflow_uses_the_windows_powershell_available_on_the_runner() -> None:
     assert "Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append" in metadata["run"]
 
 
+def test_workflow_restores_catalog_blob_bytes_in_reused_windows_checkout() -> None:
+    steps = load_workflow()["jobs"]["calculate"]["steps"]
+    restore = next(step for step in steps if step.get("name") == "Restore catalog blob bytes")
+
+    assert restore["shell"] == "powershell"
+    assert "Remove-Item -LiteralPath $env:PANDAT_DATABASE_CATALOG -Force" in restore["run"]
+    assert "git -c core.autocrlf=false checkout -- config/databases.json" in restore["run"]
+
+
 def test_result_artifact_uploads_on_failure_and_expires_after_seven_days() -> None:
     workflow = load_workflow()
     steps = workflow["jobs"]["calculate"]["steps"]

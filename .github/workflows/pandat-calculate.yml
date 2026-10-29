@@ -33,6 +33,12 @@ jobs:
         with:
           ref: main
 
+      - name: Restore catalog blob bytes
+        shell: powershell
+        run: |
+          Remove-Item -LiteralPath $env:PANDAT_DATABASE_CATALOG -Force
+          git -c core.autocrlf=false checkout -- config/databases.json
+
       - name: Install pinned runtime dependencies
         shell: powershell
         run: python -m pip install -r requirements.txt
