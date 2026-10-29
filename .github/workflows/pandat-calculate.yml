@@ -23,6 +23,7 @@ jobs:
     env:
       PANDAT_JOB_PAYLOAD: ${{ inputs.payload_b64 }}
       PANDAT_ARTIFACT_DIR: ${{ github.workspace }}\artifacts\${{ github.run_id }}
+      PANDAT_DATABASE_CATALOG: ${{ github.workspace }}\config\databases.json
       PANDAT_TEMPLATE_PATH: ${{ github.workspace }}\config\line-template.pbfx
       PANDAT_TIMEOUT_SECONDS: "7200"
       PYTHONPATH: ${{ github.workspace }}\src
@@ -33,18 +34,18 @@ jobs:
           ref: main
 
       - name: Install pinned runtime dependencies
-        shell: pwsh
+        shell: powershell
         run: python -m pip install -r requirements.txt
 
       - name: Resolve validated job identifier
         id: meta
-        shell: pwsh
+        shell: powershell
         run: |
           $jobId = python -c "import os; from pandat_bridge.payload import decode_job; print(decode_job(os.environ['PANDAT_JOB_PAYLOAD']).job_id)"
-          "job_id=$jobId" >> $env:GITHUB_OUTPUT
+          "job_id=$jobId" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Run licensed Pandat worker
-        shell: pwsh
+        shell: powershell
         run: python -m pandat_bridge.worker_cli
 
       - name: Upload audited result artifact

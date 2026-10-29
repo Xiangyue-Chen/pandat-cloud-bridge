@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import shutil
 import tempfile
 from pathlib import Path
 from typing import Sequence
 
-from .models import JobValidationError
+from .catalog import (
+    CatalogError,
+    DatabaseEntry,
+    catalog_digest,
+    parse_catalog,
+)
+from .models import JobSpec, JobValidationError
 from .payload import decode_job
 from .pbfx import PbfxError, build_pbfx
 from .result import ResultValidationError, package_result
@@ -16,6 +23,12 @@ from .runner import RunOutcome, RunnerError, run_pandat
 
 class WorkerConfigError(ValueError):
     """Raised when the licensed workstation is not configured."""
+
+
+class WorkerCatalogError(ValueError):
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -28,25 +41,44 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise WorkerConfigError("PANDAT_JOB_PAYLOAD is required")
         job = decode_job(payload)
         executable = _required_file("PANDAT_EXE")
-        database = _required_file("PANDAT_DATABASE_PATH")
+        catalog_path = _required_file("PANDAT_DATABASE_CATALOG")
         template = _required_file("PANDAT_TEMPLATE_PATH")
         timeout = _timeout()
     except (WorkerConfigError, JobValidationError) as exc:
         _status(artifact_dir, "failed", "validation_error", str(exc))
         return 2
 
+    try:
+        database, current_catalog_digest = _resolve_database(job, catalog_path)
+    except WorkerCatalogError as exc:
+        _status(artifact_dir, "failed", exc.code, str(exc))
+        return 2
+
     run: RunOutcome | None = None
     try:
         with tempfile.TemporaryDirectory(prefix="_work-", dir=artifact_dir) as temp:
             work = Path(temp)
-            pbfx = build_pbfx(job, template, database, work / "job.pbfx")
+            pbfx = build_pbfx(
+                job,
+                template,
+                database.file_path,
+                work / "job.pbfx",
+                database_format=database.format,
+            )
             run = run_pandat(pbfx, executable, timeout)
             if run.status != "success" or run.result_path is None:
                 _copy_logs(run, artifact_dir)
                 _status(artifact_dir, run.status, run.error_code, run.message, run.seconds)
                 return 1
             _copy_logs(run, artifact_dir)
-            package_result(job, run.result_path, run, artifact_dir)
+            package_result(
+                job,
+                run.result_path,
+                run,
+                artifact_dir,
+                database=database,
+                catalog_digest=current_catalog_digest,
+            )
             return 0
     except ResultValidationError as exc:
         if run is not None:
@@ -80,6 +112,46 @@ def _timeout() -> float:
     if not 1 <= value <= 7200:
         raise WorkerConfigError("PANDAT_TIMEOUT_SECONDS must be between 1 and 7200")
     return value
+
+
+def _resolve_database(job: JobSpec, catalog_path: Path) -> tuple[DatabaseEntry, str]:
+    try:
+        raw = catalog_path.read_bytes()
+        catalog = parse_catalog(raw)
+    except (OSError, CatalogError) as exc:
+        raise WorkerCatalogError("invalid_catalog", "database catalog is invalid") from exc
+
+    digest = catalog_digest(raw)
+    if job.schema_version == 2:
+        if job.catalog_digest != digest:
+            raise WorkerCatalogError("catalog_changed", "database catalog changed")
+        try:
+            database = catalog.require_enabled(job.database_id)
+        except CatalogError as exc:
+            raise WorkerCatalogError(
+                "unsupported_database", "selected database is unavailable"
+            ) from exc
+    else:
+        database = catalog.default()
+
+    submitted_elements = {entry.element for entry in job.composition}
+    unsupported = sorted(submitted_elements - set(database.elements))
+    if unsupported:
+        raise WorkerCatalogError(
+            "unsupported_element",
+            f"database does not support: {', '.join(unsupported)}",
+        )
+    try:
+        file_digest = hashlib.sha256(database.file_path.read_bytes()).hexdigest()
+    except OSError as exc:
+        raise WorkerCatalogError(
+            "database_unavailable", "registered database is unavailable"
+        ) from exc
+    if file_digest != database.sha256:
+        raise WorkerCatalogError(
+            "database_unavailable", "registered database failed integrity validation"
+        )
+    return database, digest
 
 
 def _copy_logs(run: RunOutcome, artifact_dir: Path) -> None:

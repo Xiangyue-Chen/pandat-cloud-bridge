@@ -96,3 +96,21 @@ def test_rejects_template_missing_required_nodes(tmp_path: Path) -> None:
 
     with pytest.raises(PbfxError, match="required node"):
         build_pbfx(job, malformed, database, tmp_path / "job.pbfx")
+
+
+def test_pbfx_uses_registered_format(tmp_path: Path) -> None:
+    job = JobSpec.from_mapping(c63_mapping())
+    database = tmp_path / "database.tdb"
+    database.write_text("tdb", encoding="utf-8")
+
+    output = build_pbfx(
+        job,
+        TEMPLATE,
+        database,
+        tmp_path / "job.pbfx",
+        database_format="tdb",
+    )
+
+    node = ET.parse(output).getroot().find("calculation/databases/database")
+    assert node is not None
+    assert node.get("type") == "tdb"

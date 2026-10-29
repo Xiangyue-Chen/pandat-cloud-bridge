@@ -51,7 +51,7 @@ Windows self-hosted runner（标签 pandat-licensed）
 ## 网页行为
 
 - 页面使用独立名称“Pandat 云端计算桥”，不出现拉伸曲线功能。
-- 首次进入需输入共享访问码；访问码仅保存在 Streamlit secrets，使用恒定时间比较，不进入 GitHub inputs 或日志。
+- 页面打开后直接显示计算表单，不设置共享访问码；授权边界由科研工作台及部署环境承担。
 - 输入包括样品名、成分单位（at.%/wt.%）、元素及数值、起始/终止温度、步数和压力；默认 25–1500 ℃、100 steps、1 atm。
 - 成分必须为有限非负数，总和允许在 `99.9–100.1` 内并归一化到 100；未知元素、重复元素、空成分、反向温区和越界步数均在派发前拒绝。
 - 提交后显示作业 ID、排队/运行/成功/失败状态、本机 runner 在线状态和失败摘要。
@@ -82,7 +82,7 @@ Windows self-hosted runner（标签 pandat-licensed）
 - Streamlit secrets 中的 GitHub fine-grained token 仅授予该仓库 Actions 读写和 Contents 只读；不得写入源码或日志。
 - self-hosted runner 只注册到这个私有仓库，增加自定义标签 `pandat-licensed`；仓库不得运行来自 PR/fork 的代码。
 - runner 默认交互式启动，确认批处理与 HASP 许可证稳定后再考虑 Windows 服务或计划任务。
-- 共享访问码只适合小范围同事使用；若扩展到外部用户，应改为正式身份认证和配额控制。
+- Streamlit 公网地址可被直接访问；如需限制该地址本身，应使用正式身份认证和配额控制。
 
 ## 失败与恢复
 

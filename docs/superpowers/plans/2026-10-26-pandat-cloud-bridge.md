@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - This is a new independent repository and must not import from or deploy inside `cxy-tensile-cureve`.
-- The Pandat executable, database, license information, access code, and GitHub token stay outside Git.
+- The Pandat executable, database, license information and GitHub token stay outside Git.
 - The web tier never accepts arbitrary commands, paths, PBFX files, or scripts.
 - Only `workflow_dispatch` may reach the self-hosted runner; no `push` or `pull_request` trigger is allowed.
 - A single concurrency group serializes licensed Pandat work.
@@ -169,7 +169,7 @@ git commit -m "Run licensed Pandat jobs on Windows"
 - Test: `tests/test_streamlit_app.py`
 
 **Interfaces:**
-- Consumes: Task 1 payload functions, server-side `github.token/owner/repo/workflow/ref`, `app.access_code_hash`, and GitHub REST responses.
+- Consumes: Task 1 payload functions, server-side `github.token/owner/repo/workflow/ref`, and GitHub REST responses.
 - Produces: `GitHubBroker.dispatch(job: JobSpec) -> WorkflowRun`, `get_run(run_id: int) -> RunState`, `get_runner_state(label: str) -> RunnerState`, `download_artifact(run_id: int, job_id: UUID) -> bytes`, and a Streamlit UI with submit, status and download states.
 
 - [ ] **Step 1: Write mocked GitHub REST tests**
@@ -182,7 +182,7 @@ Use one `requests.Session`, explicit timeouts, GitHub API version headers and bo
 
 - [ ] **Step 3: Write failing Streamlit smoke tests**
 
-Assert the title contains only Pandat bridge wording, access code gates all API calls, the form builds C63(C9), dispatch stores only the current job/run in session state, runner-offline guidance is visible, and completed artifacts are downloadable.
+Assert the title contains only Pandat bridge wording, the form is available without an access code and builds C63(C9), dispatch stores only the current job/run in session state, runner-offline guidance is visible, and completed artifacts are downloadable.
 
 - [ ] **Step 4: Implement the standalone Streamlit application**
 
@@ -236,7 +236,7 @@ Assert readiness checks are read-only, `start_runner.ps1` does not install or re
 
 - [ ] **Step 5: Document private-repository deployment and permission boundaries**
 
-Include GitHub fine-grained token permissions, Streamlit secrets setup, self-hosted runner registration with the `pandat-licensed` label, access-code hashing, local environment configuration, start/stop behavior, offline queue behavior and a revocation procedure.
+Include GitHub fine-grained token permissions, Streamlit secrets setup, self-hosted runner registration with the `pandat-licensed` label, local environment configuration, start/stop behavior, offline queue behavior and a revocation procedure.
 
 - [ ] **Step 6: Run Task 4 tests**
 

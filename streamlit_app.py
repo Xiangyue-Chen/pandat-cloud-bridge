@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-import hmac
 import math
 import sys
 from collections.abc import Mapping, MutableMapping, Sequence
@@ -22,13 +20,6 @@ from pandat_bridge.models import JobSpec, JobValidationError
 
 
 PAGE_TITLE = "Pandat 云端计算桥"
-
-
-def verify_access_code(provided: str, expected_sha256: str) -> bool:
-    if not provided or not expected_sha256 or len(expected_sha256) != 64:
-        return False
-    actual = hashlib.sha256(provided.encode("utf-8")).hexdigest()
-    return hmac.compare_digest(actual, expected_sha256.lower())
 
 
 def build_job_from_rows(
@@ -67,18 +58,16 @@ def submit_job(
     session: MutableMapping[str, object], broker: GitHubBroker, job: JobSpec
 ) -> WorkflowRun:
     run = broker.dispatch(job)
-    authenticated = session.get("authenticated") is True
     session.clear()
-    values: dict[str, object] = {
+    session.update(
+        {
             "current_job_id": str(job.job_id),
             "current_run_id": run.run_id,
             "current_run_url": run.html_url,
             "current_status": "queued",
             "current_conclusion": None,
-    }
-    if authenticated:
-        values["authenticated"] = True
-    session.update(values)
+        }
+    )
     return run
 
 
@@ -125,17 +114,6 @@ def render() -> None:
     st.title(PAGE_TITLE)
     st.caption("网页负责排队和回传；计算由持有 Pandat 许可证与数据库的 Windows 本机完成。")
     st.info("本机通过出站 HTTPS 主动连接 GitHub，不开放本地端口。")
-
-    expected_hash = str(_secret_section("app").get("access_code_sha256", ""))
-    if not st.session_state.get("authenticated"):
-        code = st.text_input("访问码", type="password", help="访问码不会发送到 GitHub 或写入计算日志。")
-        if st.button("进入", type="primary"):
-            if verify_access_code(code, expected_hash):
-                st.session_state["authenticated"] = True
-                st.rerun()
-            else:
-                st.error("访问码不正确，或云端尚未配置访问码。")
-        return
 
     st.subheader("1 · 填写计算条件")
     default_rows = pd.DataFrame(

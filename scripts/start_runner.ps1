@@ -1,6 +1,6 @@
 param(
     [string]$PandatExe = '',
-    [string]$DatabasePath = '',
+    [string]$DatabaseCatalog = '',
     [string]$TemplatePath = '',
     [string]$RunnerRoot = '',
     [int]$TimeoutSeconds = 7200,
@@ -9,7 +9,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 if (-not $PandatExe) { $PandatExe = if ($env:PANDAT_EXE) { $env:PANDAT_EXE } else { 'D:\bin\Pandat.exe' } }
-if (-not $DatabasePath) { $DatabasePath = $env:PANDAT_DATABASE_PATH }
+if (-not $DatabaseCatalog) {
+    $DatabaseCatalog = if ($env:PANDAT_DATABASE_CATALOG) {
+        $env:PANDAT_DATABASE_CATALOG
+    } else {
+        Join-Path (Split-Path $PSScriptRoot -Parent) 'config\databases.json'
+    }
+}
 if (-not $TemplatePath) {
     $TemplatePath = if ($env:PANDAT_TEMPLATE_PATH) {
         $env:PANDAT_TEMPLATE_PATH
@@ -21,7 +27,7 @@ if (-not $RunnerRoot) { $RunnerRoot = $env:GITHUB_RUNNER_ROOT }
 
 $required = [ordered]@{
     PANDAT_EXE = $PandatExe
-    PANDAT_DATABASE_PATH = $DatabasePath
+    PANDAT_DATABASE_CATALOG = $DatabaseCatalog
     PANDAT_TEMPLATE_PATH = $TemplatePath
 }
 foreach ($entry in $required.GetEnumerator()) {
@@ -38,7 +44,7 @@ if ($TimeoutSeconds -lt 1 -or $TimeoutSeconds -gt 7200) {
 }
 
 $env:PANDAT_EXE = (Resolve-Path -LiteralPath $PandatExe).Path
-$env:PANDAT_DATABASE_PATH = (Resolve-Path -LiteralPath $DatabasePath).Path
+$env:PANDAT_DATABASE_CATALOG = (Resolve-Path -LiteralPath $DatabaseCatalog).Path
 $env:PANDAT_TEMPLATE_PATH = (Resolve-Path -LiteralPath $TemplatePath).Path
 $env:PANDAT_TIMEOUT_SECONDS = [string]$TimeoutSeconds
 

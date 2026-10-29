@@ -72,3 +72,19 @@ def test_unknown_top_level_key_is_rejected_after_decode() -> None:
 
     with pytest.raises(JobValidationError, match="unknown fields"):
         decode_job(encoded_bytes(raw))
+
+
+def test_v2_payload_round_trip_preserves_catalog_binding() -> None:
+    job = JobSpec.from_mapping(
+        c63_mapping(
+            schema_version=2,
+            database_id="panhea-2024-th-mb",
+            catalog_digest="b" * 64,
+        )
+    )
+
+    decoded = decode_job(encode_job(job))
+
+    assert decoded == job
+    assert decoded.database_id == "panhea-2024-th-mb"
+    assert decoded.catalog_digest == "b" * 64

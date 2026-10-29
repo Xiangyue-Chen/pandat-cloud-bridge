@@ -42,6 +42,20 @@ def test_payload_reaches_worker_only_through_environment() -> None:
     assert worker["run"] == "python -m pandat_bridge.worker_cli"
     assert "payload_b64" not in worker["run"]
     assert job["env"]["PYTHONPATH"] == "${{ github.workspace }}\\src"
+    assert job["env"]["PANDAT_DATABASE_CATALOG"] == (
+        "${{ github.workspace }}\\config\\databases.json"
+    )
+    assert "PANDAT_DATABASE_PATH" not in job["env"]
+
+
+def test_workflow_uses_the_windows_powershell_available_on_the_runner() -> None:
+    steps = load_workflow()["jobs"]["calculate"]["steps"]
+    script_steps = [step for step in steps if "run" in step]
+
+    assert script_steps
+    assert {step["shell"] for step in script_steps} == {"powershell"}
+    metadata = next(step for step in script_steps if step.get("id") == "meta")
+    assert "Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append" in metadata["run"]
 
 
 def test_result_artifact_uploads_on_failure_and_expires_after_seven_days() -> None:

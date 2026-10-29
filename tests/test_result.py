@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from pandat_bridge.catalog import DatabaseEntry
 from pandat_bridge.models import JobSpec
 from pandat_bridge.result import ResultValidationError, package_result, parse_native_result
 from pandat_bridge.runner import RunOutcome
@@ -122,3 +123,37 @@ def test_packages_auditable_relative_result_bundle(tmp_path: Path) -> None:
         )
         assert str(tmp_path) not in all_text
         assert "C:\\Users\\Administrator" not in all_text
+
+
+def test_result_records_catalog_identity_without_path(tmp_path: Path) -> None:
+    job = fixture_job()
+    database = DatabaseEntry(
+        id="panhea-2024-th-mb",
+        display_name="PanHEA 2024 TH+MB",
+        format="pdb",
+        file_path=Path(r"D:\PandatData\PanHEA2024_TH+MB.pdb"),
+        sha256="a" * 64,
+        elements=("Fe", "Ni"),
+        enabled=True,
+        default=True,
+    )
+    output_dir = tmp_path / "artifact"
+
+    package_result(
+        job,
+        FIXTURE,
+        successful_run(tmp_path),
+        output_dir,
+        database=database,
+        catalog_digest="b" * 64,
+    )
+
+    metadata_text = (output_dir / "metadata.json").read_text(encoding="utf-8")
+    metadata = json.loads(metadata_text)
+    assert metadata["database"] == {
+        "id": "panhea-2024-th-mb",
+        "display_name": "PanHEA 2024 TH+MB",
+        "format": "pdb",
+        "catalog_digest": "b" * 64,
+    }
+    assert "PandatData" not in metadata_text

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import os
 import subprocess
 import sys
@@ -16,7 +15,6 @@ from streamlit_app import (
     fetch_current_artifact,
     runner_status_text,
     submit_job,
-    verify_access_code,
 )
 
 
@@ -57,22 +55,15 @@ class FakeBroker:
         return b"PK\x03\x04artifact"
 
 
-def test_page_is_standalone_pandat_bridge_and_access_gated() -> None:
+def test_page_opens_calculation_form_without_access_code() -> None:
     app = AppTest.from_file(str(APP))
     app.run()
 
     assert "Pandat" in PAGE_TITLE
     assert "拉伸" not in PAGE_TITLE
     assert app.title[0].value == PAGE_TITLE
-    assert any("访问码" in item.label for item in app.text_input)
-    assert all(button.label != "提交计算" for button in app.button)
-
-
-def test_access_code_uses_sha256_and_rejects_wrong_value() -> None:
-    expected = hashlib.sha256("correct horse".encode("utf-8")).hexdigest()
-    assert verify_access_code("correct horse", expected) is True
-    assert verify_access_code("wrong", expected) is False
-    assert verify_access_code("", expected) is False
+    assert all("访问码" not in item.label for item in app.text_input)
+    assert any(button.label == "提交计算" for button in app.button)
 
 
 def test_form_rows_build_valid_c63_job() -> None:
@@ -123,7 +114,6 @@ def test_submit_stores_only_current_job_and_run_identifiers() -> None:
     assert run.run_id == 987
     assert broker.dispatched == [job]
     assert session == {
-        "authenticated": True,
         "current_job_id": str(job.job_id),
         "current_run_id": 987,
         "current_run_url": run.html_url,

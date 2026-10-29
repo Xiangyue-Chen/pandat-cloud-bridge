@@ -10,7 +10,14 @@ class PbfxError(ValueError):
     """Raised when a native Pandat batch file cannot be created safely."""
 
 
-def build_pbfx(job: JobSpec, template: Path, database: Path, destination: Path) -> Path:
+def build_pbfx(
+    job: JobSpec,
+    template: Path,
+    database: Path,
+    destination: Path,
+    *,
+    database_format: str = "pdb",
+) -> Path:
     template = Path(template)
     database = Path(database)
     destination = Path(destination)
@@ -18,6 +25,8 @@ def build_pbfx(job: JobSpec, template: Path, database: Path, destination: Path) 
         raise PbfxError(f"template not found: {template}")
     if not database.is_file():
         raise PbfxError(f"database not found: {database}")
+    if database_format not in {"pdb", "tdb"}:
+        raise PbfxError("database format must be pdb or tdb")
     try:
         tree = ET.parse(template)
     except (ET.ParseError, OSError) as exc:
@@ -27,7 +36,9 @@ def build_pbfx(job: JobSpec, template: Path, database: Path, destination: Path) 
     if calc.get("type") != "line":
         raise PbfxError("template calculation must have type='line'")
     calc.set("name", f"{job.sample_slug}-{str(job.job_id)[:8]}")
-    _required(calc, "databases/database").set("file_name", str(database.resolve()))
+    database_node = _required(calc, "databases/database")
+    database_node.set("type", database_format)
+    database_node.set("file_name", str(database.resolve()))
     _required(calc, "units/unit[@name='n']").set("value", "x%" if job.unit == "at" else "w%")
 
     components = _required(calc, "system/components")

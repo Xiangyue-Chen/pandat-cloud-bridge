@@ -1,6 +1,6 @@
 # 验证记录
 
-验证日期：2026-10-26。
+验证日期：2026-10-28。
 
 ## 已自动验证
 
@@ -25,7 +25,7 @@
 
 本地 Streamlit 页面已在真实浏览器中检查：
 
-- 错误访问码会被拒绝，正确访问码进入独立的 Pandat 表单；
+- 页面不要求访问码，打开后直接显示 Pandat 计算表单；
 - 默认 C63(C9) at.% 成分及 25–1500 ℃条件正确显示；
 - 非递增温区在本地校验阶段阻止提交，不会调用 GitHub；
 - 页面明确说明本机使用出站 HTTPS，不开放本地端口；
@@ -43,7 +43,7 @@
 3. 创建只限该仓库的 fine-grained token，并按 README 配置 Actions/Contents/Administration 权限。
 4. 在仓库设置中生成一次性 runner 注册令牌，下载并注册 Windows x64 runner，增加 `pandat-licensed` 标签。
 5. 在本机设置 Pandat、数据库、模板和 runner 路径，重新运行只读检查，预期五项均为 `true`。
-6. 启动 runner，把 token 和访问码哈希写入 Streamlit secrets。
+6. 启动 runner，把仓库范围的 GitHub token 写入 Streamlit secrets。
 7. 从网页提交一个 C63(C9) 25–1500 ℃真实作业，核对 native result、CSV、PNG/PDF、metadata 和 Pandat 日志。
 
 首次真实作业通过前，本项目的证据边界是“软件链路与 fake Pandat 已验证，本机依赖已发现”；不能声称云端到商业 Pandat 的授权计算已经完成。

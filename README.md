@@ -45,7 +45,7 @@ config.cmd --url https://github.com/Xiangyue-Chen/pandat-cloud-bridge --token <�
 
 ```powershell
 $env:PANDAT_EXE = 'D:\bin\Pandat.exe'
-$env:PANDAT_DATABASE_PATH = 'D:\private\PanHEA2024_TH+MB.pdb'
+$env:PANDAT_DATABASE_CATALOG = "$PWD\config\databases.json"
 $env:PANDAT_TEMPLATE_PATH = "$PWD\config\line-template.pbfx"
 $env:GITHUB_RUNNER_ROOT = 'C:\actions-runner-pandat'
 $env:PANDAT_TIMEOUT_SECONDS = '7200'
@@ -73,25 +73,21 @@ powershell -NoProfile -File scripts\start_runner.ps1
 - Contents：Read-only（最小仓库读取权限）；
 - Administration：Read-only（显示 self-hosted runner 在线/忙碌状态）。
 
-生成访问码 SHA-256：
+在 Streamlit Community Cloud 为此仓库创建独立应用，入口为 `streamlit_app.py`。把 `.streamlit/secrets.example.toml` 的内容复制到 Advanced settings → Secrets 并替换 token。不要提交真实 `secrets.toml`。
 
-```powershell
-python -c "import hashlib; print(hashlib.sha256('替换为访问码'.encode()).hexdigest())"
-```
-
-在 Streamlit Community Cloud 为此仓库创建独立应用，入口为 `streamlit_app.py`。把 `.streamlit/secrets.example.toml` 的内容复制到 Advanced settings → Secrets，替换 token 和访问码哈希。不要提交真实 `secrets.toml`。
-
-Streamlit 需要被授权读取个人账户的私有仓库。网页可以公开分享网址，但只有知道共享访问码的人才能提交作业；如果扩大到外部用户，应改用正式身份认证、用户配额和审计策略。
+Streamlit 需要被授权读取个人账户的私有仓库。应用不再设置共享访问码，授权用户从科研工作台内直接使用。Streamlit 公网地址仍可被直接访问；如需限制该地址本身，应在部署边界增加正式身份认证，而不是恢复共享访问码。
 
 ## 4. 使用流程
 
 1. 保持本机联网并运行 `scripts/start_runner.ps1`。
-2. 同事打开独立 Streamlit 网址并输入访问码。
-3. 填写样品名、at.%/wt.% 成分、温区、步数和压力。
+2. 授权用户在科研工作台打开“科研工具 → Pandat 调用”。
+3. 选择已登记的数据库及其支持元素，再填写样品名、at.%/wt.% 成分、温区、步数和压力。
 4. 网页显示 runner 在线状态并提交任务。
 5. 点击“刷新状态”；成功后点击“获取计算结果”并下载 ZIP。
 
-每个任务生成独立 UUID。默认 25–1500 ℃、100 steps、1 atm；成分总和只接受 99.9–100.1，并在 runner 再验证一次。一个许可证一次只运行一个任务，其他任务排队。
+每个任务生成独立 UUID。默认 25–1500 ℃、100 steps、1 atm；成分总和只接受 99.9–100.1，并在 runner 再验证一次。数据库必须来自 `config/databases.json`，执行前还会校验目录指纹、文件 SHA-256 与元素范围。一个许可证一次只运行一个任务，其他任务排队。
+
+本机已核对的 21 个数据库和元素范围见 [`docs/pandat-database-catalog.md`](docs/pandat-database-catalog.md)。
 
 ## 5. 结果与错误
 
@@ -111,7 +107,7 @@ Streamlit 需要被授权读取个人账户的私有仓库。网页可以公开�
 1. 先关闭本机 runner。
 2. 在 GitHub Settings → Actions → Runners 移除该 runner。
 3. 在 GitHub token 设置中撤销 fine-grained token。
-4. 在 Streamlit App settings 中删除 token/访问码 secrets，或删除该应用。
+4. 在 Streamlit App settings 中删除 GitHub token secret，或删除该应用。
 
 完成以上步骤后，云端不再能投递到本机；数据库和许可证始终只在本机。
 

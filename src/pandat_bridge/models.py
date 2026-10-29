@@ -31,8 +31,12 @@ _ALLOWED_FIELDS = frozenset(
         "temperature_end_c",
         "steps",
         "pressure_atm",
+        "database_id",
+        "catalog_digest",
     }
 )
+_DATABASE_ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_CATALOG_DIGEST_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +58,8 @@ class JobSpec:
     steps: int
     pressure_atm: float
     schema_version: int = 1
+    database_id: str | None = None
+    catalog_digest: str | None = None
 
     @classmethod
     def from_mapping(cls, data: Mapping[str, object]) -> "JobSpec":
@@ -64,8 +70,26 @@ class JobSpec:
             raise JobValidationError(f"unknown fields: {', '.join(unknown)}")
 
         schema_version = data.get("schema_version", 1)
-        if schema_version != 1:
-            raise JobValidationError("schema_version must be 1")
+        if schema_version not in {1, 2}:
+            raise JobValidationError("schema_version must be 1 or 2")
+        database_id: str | None = None
+        catalog_digest: str | None = None
+        if schema_version == 1:
+            if "database_id" in data or "catalog_digest" in data:
+                raise JobValidationError("catalog fields require schema_version 2")
+        else:
+            raw_database_id = data.get("database_id")
+            if not isinstance(raw_database_id, str) or not _DATABASE_ID_PATTERN.fullmatch(
+                raw_database_id
+            ):
+                raise JobValidationError("database_id must be a lowercase catalog identifier")
+            raw_catalog_digest = data.get("catalog_digest")
+            if not isinstance(raw_catalog_digest, str) or not _CATALOG_DIGEST_PATTERN.fullmatch(
+                raw_catalog_digest
+            ):
+                raise JobValidationError("catalog_digest must be a lowercase SHA-256")
+            database_id = raw_database_id
+            catalog_digest = raw_catalog_digest
 
         raw_job_id = data.get("job_id")
         try:
@@ -157,11 +181,13 @@ class JobSpec:
             temperature_end_c=end,
             steps=steps,
             pressure_atm=pressure,
-            schema_version=1,
+            schema_version=schema_version,
+            database_id=database_id,
+            catalog_digest=catalog_digest,
         )
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        data: dict[str, object] = {
             "schema_version": self.schema_version,
             "job_id": str(self.job_id),
             "sample_name": self.sample_name,
@@ -176,6 +202,10 @@ class JobSpec:
             "steps": self.steps,
             "pressure_atm": self.pressure_atm,
         }
+        if self.schema_version == 2:
+            data["database_id"] = self.database_id
+            data["catalog_digest"] = self.catalog_digest
+        return data
 
 
 def _finite_number(value: object, label: str) -> float:

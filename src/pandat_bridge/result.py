@@ -14,6 +14,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+from .catalog import DatabaseEntry
 from .models import JobSpec
 from .runner import RunOutcome
 
@@ -170,6 +171,9 @@ def package_result(
     native_result: Path,
     run: RunOutcome,
     output_dir: Path,
+    *,
+    database: DatabaseEntry | None = None,
+    catalog_digest: str | None = None,
 ) -> Path:
     parsed = parse_native_result(job, native_result)
     output_dir = Path(output_dir)
@@ -190,6 +194,15 @@ def package_result(
         },
         "claim_boundary": "Pandat equilibrium prediction; not experimental validation.",
     }
+    if database is not None:
+        if catalog_digest is None:
+            raise ResultValidationError("catalog digest is required for database metadata")
+        metadata["database"] = {
+            "id": database.id,
+            "display_name": database.display_name,
+            "format": database.format,
+            "catalog_digest": catalog_digest,
+        }
     _write_json(output_dir / "metadata.json", metadata)
     _write_json(
         output_dir / "status.json",

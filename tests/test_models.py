@@ -160,3 +160,54 @@ def test_rejects_invalid_pressures(pressure: object) -> None:
 def test_rejects_unknown_top_level_fields() -> None:
     with pytest.raises(JobValidationError, match="unknown fields"):
         JobSpec.from_mapping(c63_mapping(command="Remove-Item"))
+
+
+def test_v2_requires_catalog_binding() -> None:
+    with pytest.raises(JobValidationError, match="database_id"):
+        JobSpec.from_mapping(c63_mapping(schema_version=2, catalog_digest="a" * 64))
+    with pytest.raises(JobValidationError, match="catalog_digest"):
+        JobSpec.from_mapping(c63_mapping(schema_version=2, database_id="panhea-2024-th-mb"))
+
+    job = JobSpec.from_mapping(
+        c63_mapping(
+            schema_version=2,
+            database_id="panhea-2024-th-mb",
+            catalog_digest="a" * 64,
+        )
+    )
+
+    assert job.schema_version == 2
+    assert job.database_id == "panhea-2024-th-mb"
+    assert job.catalog_digest == "a" * 64
+    assert job.to_dict()["database_id"] == "panhea-2024-th-mb"
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"catalog_digest": "A" * 64},
+        {"catalog_digest": "a" * 63},
+        {"database_id": "PanHEA 2024"},
+        {"file_path": r"D:\PandatData\PanHEA2024_TH+MB.pdb"},
+        {"database_format": "pdb"},
+    ],
+)
+def test_v2_rejects_path_fields_and_invalid_digest(overrides: dict[str, object]) -> None:
+    data = c63_mapping(
+        schema_version=2,
+        database_id="panhea-2024-th-mb",
+        catalog_digest="a" * 64,
+    )
+    data.update(overrides)
+
+    with pytest.raises(JobValidationError):
+        JobSpec.from_mapping(data)
+
+
+def test_v1_catalog_fields_are_absent_for_rolling_compatibility() -> None:
+    job = JobSpec.from_mapping(c63_mapping(schema_version=1))
+
+    assert job.database_id is None
+    assert job.catalog_digest is None
+    assert "database_id" not in job.to_dict()
+    assert "catalog_digest" not in job.to_dict()

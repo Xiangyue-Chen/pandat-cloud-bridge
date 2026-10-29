@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import hashlib
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -136,7 +137,7 @@ def test_cloud_dispatch_local_worker_and_web_download_round_trip(
         workflow="pandat-calculate.yml",
         session=transport,
     )
-    browser_session: dict[str, object] = {"authenticated": True}
+    browser_session: dict[str, object] = {}
 
     run = submit_job(browser_session, broker, job)
 
@@ -146,6 +147,29 @@ def test_cloud_dispatch_local_worker_and_web_download_round_trip(
 
     database = tmp_path / "private.pdb"
     database.write_bytes(b"local-only-database-placeholder")
+    catalog = tmp_path / "databases.json"
+    catalog.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "generated_at": "2026-10-28",
+                "source": "test",
+                "databases": [
+                    {
+                        "id": "test-database",
+                        "display_name": "Test Database",
+                        "format": "pdb",
+                        "file_path": str(database.resolve()),
+                        "sha256": hashlib.sha256(database.read_bytes()).hexdigest(),
+                        "elements": sorted(entry.element for entry in job.composition),
+                        "enabled": True,
+                        "default": True,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
     native_result = tmp_path / "c63.result"
     c63_native_result(
         native_result,
@@ -154,7 +178,7 @@ def test_cloud_dispatch_local_worker_and_web_download_round_trip(
     artifact_dir = tmp_path / "artifact"
     monkeypatch.setenv("PANDAT_JOB_PAYLOAD", transport.dispatched_payload)
     monkeypatch.setenv("PANDAT_EXE", str(FAKE_PANDAT))
-    monkeypatch.setenv("PANDAT_DATABASE_PATH", str(database))
+    monkeypatch.setenv("PANDAT_DATABASE_CATALOG", str(catalog))
     monkeypatch.setenv("PANDAT_TEMPLATE_PATH", str(TEMPLATE))
     monkeypatch.setenv("PANDAT_ARTIFACT_DIR", str(artifact_dir))
     monkeypatch.setenv("PANDAT_TIMEOUT_SECONDS", "2")

@@ -26,18 +26,18 @@ def powershell(script: Path, *args: str, env: dict[str, str] | None = None) -> s
 
 def fake_local_environment(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
     exe = tmp_path / "Pandat.exe"
-    database = tmp_path / "PanHEA.pdb"
+    catalog = tmp_path / "databases.json"
     template = tmp_path / "line-template.pbfx"
     runner = tmp_path / "actions-runner"
     exe.write_bytes(b"exe")
-    database.write_bytes(b"db")
+    catalog.write_text('{"schema_version": 1}', encoding="utf-8")
     template.write_text("<pbfx />", encoding="utf-8")
     runner.mkdir()
-    return exe, database, template, runner
+    return exe, catalog, template, runner
 
 
 def test_readiness_check_is_read_only_and_returns_machine_state(tmp_path: Path) -> None:
-    exe, database, template, runner = fake_local_environment(tmp_path)
+    exe, catalog, template, runner = fake_local_environment(tmp_path)
     run_cmd = runner / "run.cmd"
     run_cmd.write_text("@echo off\r\necho SHOULD_NOT_RUN\r\n", encoding="ascii")
     before = sorted(path.name for path in tmp_path.rglob("*"))
@@ -45,7 +45,7 @@ def test_readiness_check_is_read_only_and_returns_machine_state(tmp_path: Path) 
     completed = powershell(
         CHECK,
         "-PandatExe", str(exe),
-        "-DatabasePath", str(database),
+        "-DatabaseCatalog", str(catalog),
         "-TemplatePath", str(template),
         "-RunnerRoot", str(runner),
         "-Json",
@@ -56,7 +56,7 @@ def test_readiness_check_is_read_only_and_returns_machine_state(tmp_path: Path) 
     assert state == {
         "ready": True,
         "pandat": True,
-        "database": True,
+        "catalog": True,
         "template": True,
         "runner": True,
     }
@@ -64,16 +64,16 @@ def test_readiness_check_is_read_only_and_returns_machine_state(tmp_path: Path) 
     assert sorted(path.name for path in tmp_path.rglob("*")) == before
 
 
-def test_readiness_check_reports_missing_database_without_exposing_token(tmp_path: Path) -> None:
-    exe, database, template, runner = fake_local_environment(tmp_path)
+def test_readiness_check_reports_missing_catalog_without_exposing_token(tmp_path: Path) -> None:
+    exe, catalog, template, runner = fake_local_environment(tmp_path)
     (runner / "run.cmd").write_text("@echo off\r\n", encoding="ascii")
-    database.unlink()
+    catalog.unlink()
     env = {**os.environ, "GITHUB_TOKEN": "super-secret-token"}
 
     completed = powershell(
         CHECK,
         "-PandatExe", str(exe),
-        "-DatabasePath", str(database),
+        "-DatabaseCatalog", str(catalog),
         "-TemplatePath", str(template),
         "-RunnerRoot", str(runner),
         "-Json",
@@ -81,19 +81,19 @@ def test_readiness_check_reports_missing_database_without_exposing_token(tmp_pat
     )
 
     assert completed.returncode == 1
-    assert json.loads(completed.stdout)["database"] is False
+    assert json.loads(completed.stdout)["catalog"] is False
     assert "super-secret-token" not in completed.stdout + completed.stderr
 
 
 def test_start_runner_validate_only_never_executes_runner(tmp_path: Path) -> None:
-    exe, database, template, runner = fake_local_environment(tmp_path)
+    exe, catalog, template, runner = fake_local_environment(tmp_path)
     marker = tmp_path / "started.txt"
     (runner / "run.cmd").write_text(f"@echo off\r\necho started>\"{marker}\"\r\n", encoding="ascii")
 
     completed = powershell(
         START,
         "-PandatExe", str(exe),
-        "-DatabasePath", str(database),
+        "-DatabaseCatalog", str(catalog),
         "-TemplatePath", str(template),
         "-RunnerRoot", str(runner),
         "-ValidateOnly",
@@ -107,22 +107,22 @@ def test_start_runner_validate_only_never_executes_runner(tmp_path: Path) -> Non
 def test_start_runner_launches_existing_runner_interactively_with_local_environment(
     tmp_path: Path,
 ) -> None:
-    exe, database, template, runner = fake_local_environment(tmp_path)
+    exe, catalog, template, runner = fake_local_environment(tmp_path)
     marker = tmp_path / "runner-env.txt"
     (runner / "run.cmd").write_text(
         "@echo off\r\n"
-        f"echo %PANDAT_EXE%^|%PANDAT_DATABASE_PATH%^|%PANDAT_TEMPLATE_PATH%>\"{marker}\"\r\n",
+        f"echo %PANDAT_EXE%^|%PANDAT_DATABASE_CATALOG%^|%PANDAT_TEMPLATE_PATH%>\"{marker}\"\r\n",
         encoding="ascii",
     )
 
     completed = powershell(
         START,
         "-PandatExe", str(exe),
-        "-DatabasePath", str(database),
+        "-DatabaseCatalog", str(catalog),
         "-TemplatePath", str(template),
         "-RunnerRoot", str(runner),
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert marker.read_text(encoding="utf-8").strip() == f"{exe}|{database}|{template}"
+    assert marker.read_text(encoding="utf-8").strip() == f"{exe}|{catalog}|{template}"
     assert not (runner / "config.cmd").exists()
