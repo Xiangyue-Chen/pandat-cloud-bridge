@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -165,9 +166,16 @@ def _start_process_command(
     launcher = Path(__file__).resolve().parents[2] / "scripts" / "run_pandat_process.ps1"
     if not launcher.is_file():
         raise RunnerError(f"Pandat process launcher not found: {launcher}")
-    powershell = shutil.which("pwsh.exe") or shutil.which("powershell.exe")
+    configured_powershell = os.environ.get("PANDAT_POWERSHELL_EXE", "").strip()
+    if configured_powershell:
+        configured_path = Path(configured_powershell)
+        if not configured_path.is_file():
+            raise RunnerError("Configured PowerShell Core executable not found")
+        powershell = str(configured_path)
+    else:
+        powershell = shutil.which("pwsh.exe")
     if not powershell:
-        raise RunnerError("PowerShell executable not found")
+        raise RunnerError("PowerShell Core executable not found")
     return [
         powershell,
         "-NoLogo",

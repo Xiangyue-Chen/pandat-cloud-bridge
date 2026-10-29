@@ -213,7 +213,7 @@ def test_windows_executable_uses_start_process_launcher(
     assert any(str(value).endswith("run_pandat_process.ps1") for value in command)
 
 
-def test_windows_launcher_falls_back_to_windows_powershell(
+def test_windows_launcher_uses_configured_powershell_core(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import pandat_bridge.runner as runner
@@ -221,11 +221,10 @@ def test_windows_launcher_falls_back_to_windows_powershell(
     pbfx = make_pbfx(tmp_path)
     executable = tmp_path / "Pandat.exe"
     executable.write_bytes(b"placeholder")
-    monkeypatch.setattr(
-        runner.shutil,
-        "which",
-        lambda name: None if name == "pwsh.exe" else r"C:\Windows\powershell.exe",
-    )
+    powershell = tmp_path / "pwsh.exe"
+    powershell.write_bytes(b"placeholder")
+    monkeypatch.setenv("PANDAT_POWERSHELL_EXE", str(powershell))
+    monkeypatch.setattr(runner.shutil, "which", lambda name: None)
 
     command = runner._start_process_command(
         pbfx,
@@ -236,7 +235,33 @@ def test_windows_launcher_falls_back_to_windows_powershell(
         1,
     )
 
-    assert Path(command[0]).name.lower() == "powershell.exe"
+    assert Path(command[0]) == powershell
+
+
+def test_windows_launcher_does_not_use_legacy_windows_powershell(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import pandat_bridge.runner as runner
+
+    pbfx = make_pbfx(tmp_path)
+    executable = tmp_path / "Pandat.exe"
+    executable.write_bytes(b"placeholder")
+    monkeypatch.delenv("PANDAT_POWERSHELL_EXE", raising=False)
+    monkeypatch.setattr(
+        runner.shutil,
+        "which",
+        lambda name: r"C:\Windows\powershell.exe" if name == "powershell.exe" else None,
+    )
+
+    with pytest.raises(RunnerError, match="PowerShell Core"):
+        runner._start_process_command(
+            pbfx,
+            executable,
+            pbfx.with_suffix(".stdout.log"),
+            pbfx.with_suffix(".stderr.log"),
+            pbfx.with_suffix(".launcher.json"),
+            1,
+        )
 
 
 def _write_fake_executable_script(path: Path, body: str) -> Path:
