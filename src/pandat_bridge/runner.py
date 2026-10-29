@@ -165,9 +165,9 @@ def _start_process_command(
     launcher = Path(__file__).resolve().parents[2] / "scripts" / "run_pandat_process.ps1"
     if not launcher.is_file():
         raise RunnerError(f"Pandat process launcher not found: {launcher}")
-    powershell = shutil.which("pwsh.exe")
+    powershell = shutil.which("pwsh.exe") or shutil.which("powershell.exe")
     if not powershell:
-        raise RunnerError("PowerShell Core executable not found")
+        raise RunnerError("PowerShell executable not found")
     return [
         powershell,
         "-NoLogo",

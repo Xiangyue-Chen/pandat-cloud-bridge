@@ -213,8 +213,7 @@ def test_windows_executable_uses_start_process_launcher(
     assert any(str(value).endswith("run_pandat_process.ps1") for value in command)
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="Windows launcher contract")
-def test_windows_launcher_requires_powershell_core(
+def test_windows_launcher_falls_back_to_windows_powershell(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import pandat_bridge.runner as runner
@@ -228,8 +227,16 @@ def test_windows_launcher_requires_powershell_core(
         lambda name: None if name == "pwsh.exe" else r"C:\Windows\powershell.exe",
     )
 
-    with pytest.raises(RunnerError, match="PowerShell Core"):
-        run_pandat(pbfx, executable, timeout_s=1)
+    command = runner._start_process_command(
+        pbfx,
+        executable,
+        pbfx.with_suffix(".stdout.log"),
+        pbfx.with_suffix(".stderr.log"),
+        pbfx.with_suffix(".launcher.json"),
+        1,
+    )
+
+    assert Path(command[0]).name.lower() == "powershell.exe"
 
 
 def _write_fake_executable_script(path: Path, body: str) -> Path:
@@ -330,3 +337,10 @@ def test_windows_launcher_tolerates_natural_exit_during_cleanup() -> None:
     source = WINDOWS_LAUNCHER.read_text(encoding="utf-8")
 
     assert "catch [InvalidOperationException]" in source
+
+
+def test_windows_launcher_writes_status_as_utf8_without_bom() -> None:
+    source = WINDOWS_LAUNCHER.read_text(encoding="utf-8")
+
+    assert "[Text.UTF8Encoding]::new($false)" in source
+    assert "[IO.File]::WriteAllText" in source

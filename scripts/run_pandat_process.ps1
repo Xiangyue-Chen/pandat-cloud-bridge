@@ -72,11 +72,16 @@ try {
     } catch {
         if ($null -eq $launchError) { $launchError = $_.Exception.Message }
     } finally {
-        [ordered]@{
+        $statusJson = [ordered]@{
             pid = $childPid
             exit_code = $childExitCode
             timed_out = $timedOut
-        } | ConvertTo-Json | Set-Content -LiteralPath $StatusPath -Encoding UTF8
+        } | ConvertTo-Json
+        [IO.File]::WriteAllText(
+            $StatusPath,
+            $statusJson,
+            [Text.UTF8Encoding]::new($false)
+        )
     }
 }
 
