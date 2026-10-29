@@ -43,6 +43,12 @@ EXPECTED_ELEMENTS = {
 }
 
 
+def test_catalog_keeps_lf_bytes_on_windows_runner() -> None:
+    attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
+
+    assert "config/databases.json text eol=lf" in attributes.splitlines()
+
+
 def test_local_catalog_records_all_pandat_verified_databases() -> None:
     catalog = load_catalog(CATALOG_PATH)
 
