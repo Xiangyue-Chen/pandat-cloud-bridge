@@ -45,6 +45,7 @@ def test_payload_reaches_worker_only_through_environment() -> None:
     assert job["env"]["PANDAT_DATABASE_CATALOG"] == (
         "${{ github.workspace }}\\config\\databases.json"
     )
+    assert job["env"]["PANDAT_EXE"] == "D:\\bin\\Pandat.exe"
     assert "PANDAT_DATABASE_PATH" not in job["env"]
 
 

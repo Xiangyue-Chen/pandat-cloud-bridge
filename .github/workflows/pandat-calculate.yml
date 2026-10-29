@@ -22,6 +22,7 @@ jobs:
     timeout-minutes: 130
     env:
       PANDAT_JOB_PAYLOAD: ${{ inputs.payload_b64 }}
+      PANDAT_EXE: D:\bin\Pandat.exe
       PANDAT_ARTIFACT_DIR: ${{ github.workspace }}\artifacts\${{ github.run_id }}
       PANDAT_DATABASE_CATALOG: ${{ github.workspace }}\config\databases.json
       PANDAT_TEMPLATE_PATH: ${{ github.workspace }}\config\line-template.pbfx
